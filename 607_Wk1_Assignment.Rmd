@@ -1,0 +1,84 @@
+---
+title: "NBA RAPTOR RANKINGS "
+author: "Jerald Melukkaran"
+date: "2025-02-03"
+output: html_document
+---
+# Overview 
+
+The dataset I have chosen to load is the 
+The Best NBA Players, According To RAPTOR
+
+https://projects.fivethirtyeight.com/nba-player-ratings
+
+RAPTOR is a plus-minus statistic that measures the number of points a player contributes to his team’s offense and defense per 100 possessions, relative to a league-average player.
+
+
+### Initial setup
+
+Here we load all the necessary libraries 
+
+```{r setup, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(readr)
+
+```
+
+### Loading data into dataframe 
+
+Obtained the permalink for the file from github and loaded the csv into a dataframe 
+
+```{r message=FALSE, warning=FALSE}
+url <- "https://projects.fivethirtyeight.com/nba-model/2023/latest_RAPTOR_by_player.csv"
+nba <- read_csv(url)
+
+```
+
+### Selecting the essential columns
+For the purpose of this assignment we only need to look at the players defensive, offensive and total RAPTOR ratings 
+
+```{r message=FALSE, warning=FALSE}
+nba_sm <- select(nba, player_name, raptor_offense, raptor_defense, raptor_total) 
+
+
+```
+
+
+### Ordering by total rating 
+
+Here we order the players in descending order of their total raptor scores
+
+```{r message=FALSE, warning=FALSE}
+
+nba_inOrder <- nba_sm[order(nba_sm$raptor_total,decreasing=TRUE),]
+
+```
+
+### Clean up column names
+
+We finally clean up the column names for better clarity and list the top 20 players by total RAPTOR score
+
+```{r}
+
+colnames(nba_inOrder) <- c("Player", "Offensive rating","Defensive rating","Total rating")
+head(nba_inOrder,10)
+
+```
+
+
+### Unexpected results 
+
+Here we can notice that the top 4 players are rather unexpected compared to the rest of the results. This is because Raptor scores dont take into account minutes played by each player. A better result could be obtained by limiting the list to players with atleast 1000 minutes played 
+
+```{r}
+nba_inOrder <- nba[order(nba$raptor_total,decreasing=TRUE),]
+nba_mp <- filter(select(nba_inOrder, player_name, raptor_offense, raptor_defense, raptor_total, mp), mp>1000)
+colnames(nba_mp) <- c("Player", "Offensive rating","Defensive rating","Total rating","Minutes played")
+head(nba_mp, 10)
+```
+
+### Conclusion 
+
+The RAPTOR rating system gives us a detailed looked at offensive and defensive ratings througouhgt the season with extended variables that measure player performance metrics. Once they add team names to the dataset, we would be able to analyse team performance compared to the performance of its top starts and how that corelates 
