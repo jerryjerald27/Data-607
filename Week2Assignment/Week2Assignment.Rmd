@@ -1,0 +1,145 @@
+---
+title: "Week2Assignment"
+author: "Jerald Melukkaran"
+date: "2025-02-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(dplyr)
+library(readr)
+library(tidyverse)
+```
+
+## Introduction 
+
+I have created three tables necessary for the analysis using sql code run in postgresql that is available in the github link. 
+This code was then converted to .csv files to load into this Rmarkdown using the F8 command from within the sql query editor of pgadmin4. THe tables created are as follows 
+
+
+### Movies
+List of 6 movies that are being considered , their genre , and their imdb online ratings 
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+movies <- read_csv("movies.csv")
+knitr::kable((movies), "simple")
+
+```
+
+### Viewers 
+List of the 10 people that i asked for ratings, their age, gender, and favorite genres 
+
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+
+viewers <- read_csv("viewers.csv")
+knitr::kable((viewers), "simple")
+
+```
+
+
+
+### Viewer_ratings : 
+
+Initially a long list of the ratings that were given to the movies from 1-5 converted to a wider format using pivot_wider for better viewing 
+
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+viewer_ratings <- read_csv ("viewer_ratings.csv")
+
+viewer_ratings_wide <- viewer_ratings %>%
+  pivot_wider(
+    names_from = "viewer_name",
+    values_from = "viewer_rating"
+  )
+
+
+knitr::kable((viewer_ratings_wide), "simple")
+```
+
+
+## Ratings analyis 
+
+We can now create the a table that aggregates the ratings for the movies by averaging the scores that we got from our viewers , and compare it to the online aggragate rating. This code is also in the sql. It uses the COALESCE and AVG functions provided , Performs a LEFT JOIN and a GROUP by to go through the viewers ratings table and calculates averages all the ratings for those without NULL values. It also converts the online aggregate system to range of 5 instead of 10 to better compare. We then reshape this data to be able to make overlapping ggplot data grouped by the rating 
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+
+movie_ratings <- read_csv("movie_ratings.csv")
+knitr::kable((movie_ratings), "simple")
+
+reshaped_movie_ratings <- movie_ratings %>%
+  pivot_longer(cols = c(online_aggregate_rating, average_score), 
+               names_to = "rating_type", 
+               values_to = "rating") %>%
+  mutate(rating_type = case_when(
+    rating_type == "online_aggregate_rating" ~ "Online Aggregated",
+    rating_type == "average_score" ~ "Viewer"
+  ))
+
+
+```
+
+Now we can plot to see the difference between the online aggregate rating and our viewer ratings 
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+
+ggplot(data=reshaped_movie_ratings, aes(x=movie_name, y=rating, group=rating_type)) +
+  geom_point(aes(color=rating_type)) + 
+  geom_line(aes(group=movie_name), color="grey", 
+          size=0.5, alpha=0.8)+
+  ylim(3, 5) +
+  geom_line() +
+  coord_flip()
+
+
+```
+
+We see that viewer aggregates are evened out because of viewers rating movies that are across the genre range irrespective of their preffered genre. The wider online rating seems to be generally higher than our statistical data. 
+
+
+
+## Ratings analyis with preffered genre 
+
+We can now try analyis with only including aggregate scores for those of our viewers that rated movies from their favorite genres 
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+
+movie_ratings <- read_csv("movie_ratings_preferred.csv")
+knitr::kable((movie_ratings), "simple")
+
+reshaped_movie_ratings_preffered <- movie_ratings %>%
+  pivot_longer(cols = c(online_aggregate_rating, average_score), 
+               names_to = "rating_type", 
+               values_to = "rating") %>%
+  mutate(rating_type = case_when(
+    rating_type == "online_aggregate_rating" ~ "Online Aggregated",
+    rating_type == "average_score" ~ "Viewer"
+  ))
+
+
+
+
+ggplot(data=reshaped_movie_ratings_preffered, aes(x=movie_name, y=rating, group=rating_type)) +
+  geom_point(aes(color=rating_type)) + 
+  geom_line(aes(group=movie_name), color="grey", 
+          size=0.5, alpha=0.8)+
+  ylim(3, 5) +
+  geom_line() +
+  coord_flip()
+```
+
+## Conclusion 
+
+When accounting for the favorite genre of out participants, we can conclude that they aggregates are much closer and even getting to the exact same point for one of our movies , Kingdom of planet of the apes. From this we can make a reasonable assumption that online aggregates are often calculated by averaging scores of people who like the genre , goes to watch the movie and rates it.
+
+
+
