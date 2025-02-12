@@ -1,0 +1,175 @@
+---
+title: "607_Week2ExtraCredit"
+author: "Jerald Melukkaran"
+date: "2025-02-12"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(readr)
+library(ggplot2)
+
+results <- data.frame(
+  Threshold = numeric(),
+  Accuracy = numeric(), 
+  Precision = numeric(),
+  Recall = numeric(),   
+  F1_score = numeric()     
+)
+
+
+
+```
+
+### Introduction 
+
+In this paper  we go through a predictor model and analyse its performance metrics 
+
+
+### Null error rate 
+
+
+This metric lets us know how often we would be wrong if we always predicted the majority class. It gives us a good baseline in predicting the accuracy of a model. If a model’s accuracy is lower than or close to the null error rate, it means the model isn’t doing better than just guessing the majority class. Knowing the majority class also helps us identify how imbalanced the datatype is to see which other performance metrics might be of a greater use. 
+
+Formula : 
+1 - (Majority class count / Total count )
+
+We load the data first from github, calculate the totals to find the majority and then calculate the Null Error Rate
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ penguin <- read_csv("https://raw.githubusercontent.com/acatlin/data/refs/heads/master/penguin_predictions.csv")
+head(penguin)
+
+total_females <- sum(penguin$sex == 'female')
+total_males <- sum(penguin$sex == 'male')
+null_error_rate <- 1 - (total_males/ (total_males + total_females))
+cat("Total females:", total_females, "\n")
+cat("Total males:", total_males, "\n")
+cat("Null Error Rate:", null_error_rate, "\n")
+
+
+
+```
+
+This lets us know that if we create a predictor that just picks the majority male everytime we would be wrong 41.9% of the time.  
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+#ggplot(penguin, aes(x = factor(sex))) +
+#  geom_bar() +
+#  labs(title = "Distribution of Actual Classes",
+#       x = "Actual Class (Sex)",
+#       y = "Count") 
+
+penguin_pie <- data.frame(
+  gender = c("Male", "Female"),
+  proportion = c(0.58, 0.41)
+)
+
+
+ggplot(penguin_pie, aes(x = "", y = proportion , fill = gender)) +
+  geom_col(color = "black") +
+  geom_text(aes(label = proportion),
+            position = position_stack(vjust = 0.5)) +
+  coord_polar(theta = "y")
+```
+
+### Confusion Matrix 
+
+We use confusion matrices to plot True and False positives and negatives. In this scenario we assume that the sex , prediction being female as postive values. And the sex / prediction being male as negative values. 
+
+At the default threshold of 0.5 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+
+# We create a function for Computing the matrix 
+
+
+confusion_matrix_function <- function(df, threshold){
+  
+TP <- sum(df$.pred_class == 'female' & df$sex == 'female')  
+TN <- sum(df$.pred_class == 'male' & df$sex == 'male')  
+FP <- sum(df$.pred_class == 'female' & df$sex == 'male')
+FN <- sum(df$.pred_class == 'male' & df$sex == 'female')
+
+
+conf_matrix <- matrix(c(TN, FP, FN, TP), nrow = 2, byrow = TRUE,
+                      dimnames = list("Actual" = c("Male", "Female"),
+                                      "Predicted" = c("Male", "Female")))
+print(conf_matrix)
+
+ accuracy <- (TP + TN) / (TP + TN + FP + FN)
+ precision <- ifelse((TP + FP) == 0, 0, TP / (TP + FP))
+ recall <- TP / (TP + FN)
+ f1_score <- 2 * (precision * recall) / (precision + recall)
+
+ cat("Accuracy:", accuracy, ", Precision: ", precision ,", recall: ", recall , ' and F1: ' , f1_score)
+
+#return(c(threshold, accuracy, precision, recall, f1_score))
+return( data.frame(Threshold = threshold,Accuracy = accuracy , Precision = precision, Recall = recall, F1_score = f1_score))
+
+}
+
+new_row <- confusion_matrix_function(penguin,0.5)
+results <- rbind(results, new_row)
+#head(results)
+
+
+```
+
+
+
+#### Confusion Matrix at threshold 0.2
+
+Here we alter the predictor to predict female when the .pred_female is over 0.2 instead of 0.5
+
+```{r echo=FALSE}
+
+penguin_0.2 <- penguin 
+penguin_0.2$.pred_class <- ifelse(penguin_0.2$.pred_female > 0.2, "female", "male")
+#penguin_0.2$.pred_class[penguin_0.2$.pred_female > 0.2 ] <- 'female'
+
+new_row <- confusion_matrix_function(penguin_0.2,0.2)
+results <- rbind(results, new_row)
+#head(results)
+
+```
+
+#### Confusion Matrix : threshold 0.8
+
+
+Here we alter the predictor to predict female when the .pred_female is over 0.8 instead of 0.5
+
+```{r echo=FALSE}
+
+penguin_0.8 <- penguin 
+penguin_0.8$.pred_class <- ifelse(penguin_0.8$.pred_female > 0.8, "female", "male")
+#penguin_0.8$.pred_class[penguin_0..pred_female <0.8 ] <- 'male'
+
+new_row <- confusion_matrix_function(penguin_0.8,0.8)
+results <- rbind(results, new_row)
+#head(results)
+```
+
+### Results 
+
+Now we can compare the effect the different threshold values have on other metrics 
+
+```{r echo=FALSE}
+head (results)
+
+```
+
+
+At 0.2 threshold we can notice that that in this dataset we have a lot more False positives with penguins being classified as females when theyre actualy males. But we also have more true positives with females actually being predicted as females. This would be a good moddel if its more beneficial in predicting false positives to lessen risk factors for eg in a health condition predictor where we would rather have a false positive than a False negative m where someone with the condition is predicted as not having it. 
+
+At 0.8 threshhold we get more True negatives where males are being accurately predicted as males. Combining this with the similar number of True positives, this case gives us the highest accuracy. With a more balanced dataset, the accuracy gives a good measure on understanding the quality of the predictor. This also would be beneficial in a situation where predicting true negatives are more important than finding true positives. 
+
+
+
+
+
