@@ -83,13 +83,13 @@ eg abcdefhcba , 14i29dhfi41
 #### Q4 
 
 1. Starting and ending with same character  
-ANS: "(.).*\1$"
+ANS: "^(.).*\1$"
 
 2. Words that contain repeated pairs  
 ANS: "(..).*\1" 
 
 3. Contains 1 letter repeated in 3 places   
-ANS "(.).* \1.*\1" 
+ANS: "(.).* \1.*\1" 
 
 
 
