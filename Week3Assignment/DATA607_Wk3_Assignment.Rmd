@@ -1,0 +1,101 @@
+---
+title: "DATA607_Assignmnet3 "
+author: "Jerald Melukkaran"
+date: "2025-02-16"
+output: html_document
+---
+# Overview 
+
+
+### Initial setup
+
+Here we load all the necessary libraries 
+
+```{r setup, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(readr)
+
+```
+
+### Loading data into dataframe 
+
+Obtained the permalink for the file from github and loaded the csv into a dataframe 
+
+```{r message=FALSE, warning=FALSE}
+url <- "https://raw.githubusercontent.com/fivethirtyeight/data/refs/heads/master/college-majors/majors-list.csv"
+majors <- read_csv(url)
+
+```
+
+#### Q1 
+Finding majors that have DATA or STATISTICS in them 
+
+```{r message=FALSE, warning=FALSE}
+q1majors <- majors %>% 
+  filter(grepl("DATA|STATISTICS", Major, ignore.case = TRUE))
+
+print (q1majors)
+
+```
+
+#### Q2 
+
+```{r}
+fruits <- c("bell pepper", "bilberry", "blackberry", "blood orange",
+            "blueberry", "cantaloupe", "chili pepper", "cloudberry",
+            "elderberry", "lime", "lychee", "mulberry",
+            "olive", "salal berry")
+
+cat("c(", paste(shQuote(fruits, type="cmd"), collapse = ", "), ")")
+```
+
+We start with the c( , shQuote adds quotes, cmd makes it double quotes, collapse separates the elements with a comma and a space and we end with the ) 
+
+
+#### Q3
+
+
+1. (.)\1\1    
+Matches characters that are consecutively repeated thrice.  
+eg aaa, hhh
+
+2. (.)(.)\\2\\1  
+Gets two characters, and checks if the two characters repeat in reverse.   
+eg xyyx
+
+2. (..)\1
+Gets two characters and checks if they repeat again without any other characters in between   
+eg xyxy , k5k5
+
+
+3. (.).\\1.\\1
+Matches a 5 character sequence where the 1st,3rd and 5th characters are the same. 2nd and 4th can be any character  
+eg xyx8x , 4d424
+
+4. (.)(.)(.).*\\3\\2\\1  
+Gets sequences that start with 3 characters and end with the same three characters in reverse with any number of characters in between.  
+eg abcdefhcba , 14i29dhfi41
+
+
+
+#### Q4 
+
+1. Starting and ending with same character  
+ANS: "(.).*\1$"
+
+2. Words that contain repeated pairs  
+ANS: "(..).*\1" 
+
+3. Contains 1 letter repeated in 3 places   
+ANS "(.).* \1.*\1" 
+
+
+
+
+
+
+
+
+
