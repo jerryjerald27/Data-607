@@ -365,7 +365,8 @@ display: none;
 <pre class="r"><code>knitr::opts_chunk$set(echo = TRUE)
 
 library(dplyr)
-library(readr)</code></pre>
+library(readr)
+library(tidyverse)</code></pre>
 </div>
 <div id="loading-data-into-dataframe" class="section level3">
 <h3>Loading data into dataframe</h3>
@@ -403,20 +404,22 @@ end with the )</p>
 <div id="q3" class="section level4">
 <h4>Q3</h4>
 <ol style="list-style-type: decimal">
-<li><p>(.)\1\1<br />
-Matches characters that are consecutively repeated thrice.<br />
-eg aaa, hhh</p></li>
-<li><p>(.)(.)\2\1<br />
+<li>(.)\1\1</li>
+</ol>
+<p>it Matches characters that are consecutively repeated thrice.<br />
+eg aaa, hhh</p>
+<ol start="2" style="list-style-type: decimal">
+<li><p>“(.)(.)\2\1”<br />
 Gets two characters, and checks if the two characters repeat in
 reverse.<br />
 eg xyyx</p></li>
 <li><p>(..)\1 Gets two characters and checks if they repeat again
 without any other characters in between<br />
 eg xyxy , k5k5</p></li>
-<li><p>(.).\1.\1 Matches a 5 character sequence where the 1st,3rd and
+<li><p>“(.).\1.\1” Matches a 5 character sequence where the 1st,3rd and
 5th characters are the same. 2nd and 4th can be any character<br />
 eg xyx8x , 4d424</p></li>
-<li><p>(.)(.)(.).*\3\2\1<br />
+<li><p>“(.)(.)(.).*\3\2\1”<br />
 Gets sequences that start with 3 characters and end with the same three
 characters in reverse with any number of characters in between.<br />
 eg abcdefhcba , 14i29dhfi41</p></li>
