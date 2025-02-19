@@ -1,0 +1,58 @@
+---
+title: "Week3EstraWINDOW"
+author: "Jerald Melukkaran"
+date: "2025-02-19"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(readr)
+library(zoo)
+```
+
+
+
+```{r message=FALSE, warning=FALSE}
+goog <- read_csv("https://raw.githubusercontent.com/jerryjerald27/Data-607/refs/heads/main/Week3Assignment/goog.csv")
+
+head(goog)
+
+```
+
+
+We can call the functions with the different metrics that are available within the goog.csv 
+
+Closing price
+```{r}
+goog <- goog %>%
+  mutate(date = as.Date(date)) %>%
+  arrange(date) %>%
+  mutate(
+    ytd_avg = cummean(close),  # Ytd average
+        moving_avg_6 = rollapply(close, width = 6, FUN = mean, fill = NA, align = "right", partial = TRUE)  # 6-day moving average without NA 
+  )
+
+
+head(goog,10)
+```
+
+Or on the highest prices 
+
+```{r}
+goog <- goog %>%
+  mutate(date = as.Date(date)) %>%
+  arrange(date) %>%
+  mutate(
+    ytd_avg = cummean(high),  
+        moving_avg_6 = rollapply(high, width = 6, FUN = mean, fill = NA, align = "right", partial = TRUE) 
+  )
+
+
+head(goog,10)
+```
+
+
+
