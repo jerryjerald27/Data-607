@@ -1,0 +1,78 @@
+---
+title: "Week3GlobalBaselineEstimate "
+author: "Jerald Melukkaran"
+date: "2025-02-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(dplyr)
+library(readr)
+library(tidyverse)
+```
+
+## Introduction 
+For this exercise im trying to use global baseline estimates to help us predict movie ratings. 
+
+We first start with the user reviews, initially a long list of the ratings that were given to the movies from 1-5 converted to a wider format using pivot_wider for better viewing 
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+viewer_ratings <- read_csv ("viewer_ratings.csv")
+
+ratings <- viewer_ratings %>%
+  pivot_wider(
+    names_from = "movie_name",
+    values_from = "viewer_rating",
+  )
+
+knitr::kable((ratings), "simple")
+```
+
+Now we add averages for each movie in a column, and viewer averages for each row
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+ratings$viewer_avg <- round(rowMeans(ratings[, -1], na.rm = TRUE),1)
+movie_avg <- round(colMeans(ratings[, -1], na.rm = TRUE), 1)
+ratings <- rbind(ratings, c("movie_avg", movie_avg))
+
+knitr::kable((ratings), "simple")
+```
+
+
+## Global estimate 
+
+THe formula for predicting what someones rating for a specific movie according to the the spreadsheet was 
+Global Baseline Estimate = Mean Movie Rating + (The specific movies avg rating - MMR) + (The specific viewers average rating - MMR) 
+
+Now we can predict how the viewers who did not see the movie might rate it. And replace the NA values with the GLobal estimates. 
+
+```{r}
+
+MMR <- 3.7
+ratings_data <-ratings
+
+
+for (movie in names(ratings_data)[2:7]) {  # Loop through columns 2 - 7 
+  for (i in 1:nrow(ratings_data)) {  # Loop through rows 
+    if (is.na(ratings_data[i, movie])) {
+      # Get movie's average rating 
+      movie_avg_rating <- as.numeric(ratings_data[nrow(ratings_data), movie])
+      # Get viewers average rating
+      viewer_avg_rating <- as.numeric(ratings_data[i, 8])
+      # Calculate Global Baseline EstimateS
+      baseline_estimate <- MMR + (movie_avg_rating - MMR) + (viewer_avg_rating - MMR)
+      # Replace the NA value with estimates
+      ratings_data[i, movie] <-as.character(baseline_estimate) 
+    }
+  }
+}
+
+knitr::kable((ratings_data), "simple")
+
+
+```
+
+
+
+
