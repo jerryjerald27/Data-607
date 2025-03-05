@@ -1,0 +1,188 @@
+---
+title: "DATA607_Week5_TidyTransform"
+author: "Jerald Melukkaran"
+date: "2025-03-04"
+output: html_document
+---
+```{r include=FALSE}
+# Load necessary package
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+```
+
+### Introduction 
+
+In this exercise we import, tidy , transform and analyse flight data from a csv file that includes the counts of on time and delayed departure flights operated by Alaska air and AM WEST to 5 major cities in the united states. 
+
+
+### Data handling 
+
+The initial data set when imported looks like this 
+
+```{r echo=FALSE}
+flight_data <- read.csv("flights.csv", header = FALSE, skip = 1)
+glimpse(flight_data)
+```
+
+We can now cleanup the empty row, add column names and add the Airline name to the second row
+
+```{r echo=FALSE}
+## Add column names 
+colnames(flight_data) <- c("Airline", "Status", "Los Angeles", "Phoenix", "San Diego", "San Francisco", "Seattle")
+## To remove the lines with NA and blank columns 
+flight_data <- flight_data[apply(flight_data[, -1], 1, function(x) any(!is.na(x) & x != "")), ]  
+## To add the Airline name to the second row  
+for (i in 1:nrow(flight_data)) {
+  if (flight_data$Airline[i] =="") {
+    flight_data$Airline[i] <- flight_data$Airline[i-1]
+  }
+}
+```
+
+The Tidied data now looks like this 
+
+```{r echo=FALSE}
+knitr::kable((flight_data),"simple")
+```
+
+We can now transform the data into the standard form where all observations are rows and all columns are variables 
+
+```{r echo=FALSE}
+# Step 4: Pivot the data longer using pivot_longer
+flight_data_tidy <- pivot_longer(flight_data,
+                                 cols = -c(Airline, Status),   # Columns to pivot (exclude Airline and Status)
+                                 names_to = "City",            # New column for city names
+                                 values_to = "Count")          # New column for the counts
+
+
+knitr::kable(head(flight_data_tidy),"simple")
+
+
+  
+```
+
+
+### Analysis 
+
+With the data now tidy and transformed, the fist comparison made is between the on time and delayed flight numbers for both airlines across all 5 cities so that we have a basic overview
+
+
+```{r echo=TRUE, warning=FALSE}
+
+ggplot(flight_data_tidy, aes(x = City, y = Count, color = Airline, group = Airline)) +
+  geom_line() +
+  geom_point() +
+  labs(x = "City", y = "Flight Count") +
+  facet_wrap(~ Status) +  # Facet by status
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Angle x-axis 
+  
+```
+
+if we look at overall delays, we see that AM WEST consistently have a lot more delayed flights than Alaska, especially in Phoenix. The only exception to this plot is Seattle where AM has less delayed flights than Alaska. In addition when we plot the on time arrivals we notice that AM WEST also have a lot more on time arrivals than Alaska, especially in Phoenix, with the trend reversing again in Seattle. 
+
+If we look at just Delayed flight numbers we might be led to believe that Alaska performs better in all cases except in Seattle, and if we only look at on time arrivals, we might be led to believe AM WEST does better expect in San Francisco and Seattle. 
+
+
+ 
+
+
+### Rate analyis 
+
+
+When considering data like this its important to bring flight volume into the equation. Knowing the proportion of delayed vs on-time flights will help us better analyse the trends in this data set. It will also be helpful if we can compare the overall stats for the airlines , and then break it down city by city 
+
+
+#### City Baseline 
+
+When analyzing overall rates for this data its important that we calculate some baseline stats for all 5 cities being studied. The most important stat here is the Average rate of delay that has been calculated for each city. 
+
+```{r}
+
+flight_stats_city <- flight_data_tidy %>%
+  group_by(City) %>%
+  summarise(
+    Total_Flights = sum(Count),  # Total flights (on-time + delayed)
+    Delayed_Flights = sum(Count[Status == "delayed"]),  # Delayed flights
+    OnTime_Flights = sum(Count[Status == "on time"]),  # On-time flights
+    Rate_of_Delay = Delayed_Flights / Total_Flights  # Calculate the rate of delay
+  )
+
+knitr::kable(flight_stats_city,"simple")
+```
+
+
+#### Airline overall 
+
+We can also see how each airline does when taken as a whole without going city by city 
+
+```{r}
+flight_stats_overall <- flight_data_tidy %>%
+  group_by(Airline) %>%
+  summarise(
+    Total_Flights = sum(Count),  # Total flights (on-time + delayed)
+    Delayed_Flights = sum(Count[Status == "delayed"]),  # Delayed flights
+    OnTime_Flights = sum(Count[Status == "on time"]),  # On-time flights
+    Rate_of_Delay = Delayed_Flights / Total_Flights  # Calculate the rate of delay
+  )
+
+knitr::kable(flight_stats_overall,"simple")
+```
+
+Here we can see that Alaska has a slightly higher overall Rate of Delay compared to Alaska 
+
+
+#### Airline rates across each city  
+
+No we observe how each airline does individually by calculating their total delays compared to the total number of operated flights within each city . 
+
+```{r message=FALSE, warning=FALSE}
+flight_stats <- flight_data_tidy %>%
+  group_by(Airline, City) %>%
+  summarise(
+    Total_Flights = sum(Count),  # Total flights (on-time + delayed)
+    Delayed_Flights = sum(Count[Status == "delayed"]),  # Delayed flights
+    OnTime_Flights = sum(Count[Status == "on time"]),  # On-time flights
+    Rate_of_Delay = Delayed_Flights / Total_Flights  # Calculate the rate of delay
+  )
+
+knitr::kable(flight_stats,"simple")
+```
+
+
+We can now bring it all together and plot the average rate of delays for Alaska and AM West and compare it against the average city rate of delay which is symbolized by the red dot in this plot 
+
+
+```{r}
+
+
+ggplot() +
+  # Bar plot for the rate of delay (
+  geom_bar(data = flight_stats, aes(x = City, y = Rate_of_Delay, fill = Airline), 
+           stat = "identity", position = "dodge", show.legend = TRUE) +  
+  geom_point(data = flight_stats_city, aes(x = City, y = Rate_of_Delay), 
+             color = "red", size = 4, shape = 16, show.legend = FALSE) + 
+  # Labels and title
+  labs(x = "City",
+       y = "Rate of Delay") + 
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+### Findings
+
+
+From this graph the data on flight delays is a lot more clear. While their overall delay rates where higher, At all 5 cities Alaska performs better than both the city average and AM West. In other words, if you were to fly to one of these cities, choosing Alaska would would ensure that your rate of delays are significantly lower than the city average. This is even true in cities like Seattle and San Francisco where they have a higher volume of operated flights compared to AM West.
+
+### Explaining the discrepancy
+
+The overall rates that are misleading is the result of volume discrepancy when it comes to AM west among the 5 cities. In this example, Phoenix has 5,255 flights operated by AM WEST with a relatively low 7.89 percentage delay rate while their delay rates across the other 4 cities lie around 15 - 20 percent. AM WEST's volume going to phoenix counts for 78 percent of the total volume and therefore contributes significantly to their overall delay rates bringing it down. 
+
+On the other hand Alaska's delay rate for its highest volume city Seattle with 2146 flights is on the higher end of its average delay rates across cities. Even though its lower than the AM west volume discrepancy, it accounts for 567 percent of all of Alaska's flights, using their overall rate of delay higher 
+
+
+### Conclusion 
+
+When analyzing data its important to consider groupings of variables that might be affecting your results. This data set is a good example for understanding the Simpsons paradox where the relationship between variables reverse or disappear when grouped using another variable. 
+
