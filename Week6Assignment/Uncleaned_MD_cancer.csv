@@ -1,0 +1,15 @@
+Patient_ID,Month,Age_Group,Race,Cases_2020,Cases_2021,Cases_2022,Cases_2023,Cases_2024,Total_Patients,Type
+P001,January,30-39,White,50,55,60,65,70,300,Invasive Ductal
+P002,January,40-49,Black,90,95,100,105,120,510,Lobular
+P003,January,50-59,Hispanic,80,85,88,90,110,453,Triple-Negative
+P004,February,30-39,Asian,70,75,80,85,90,400,HER2+
+P005,February,40-49,White,110,115,120,125,140,610,Inflammatory
+P006,March,50-59,Black,130,135,140,145,160,710,Invasive Ductal
+P007,March,60-69,Hispanic,100,105,110,115,130,560,Lobular
+P008,March,70+,Asian,70,75,78,80,100,403,Triple-Negative
+P009,April,30-39,White,60,65,70,75,85,355,HER2+
+P010,April,40-49,Black,90,95,100,105,120,510,Inflammatory
+P011,May,50-59,Hispanic,120,125,130,135,150,660,Invasive Ductal
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
