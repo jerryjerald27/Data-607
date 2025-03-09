@@ -1,0 +1,10 @@
+name: Publish Document
+title:
+username:
+account: rpubs
+server: rpubs.com
+hostUrl: rpubs.com
+appId: https://api.rpubs.com/api/v1/document/1282391/26e3b6def33943c0bbefb2e93fd163bc
+bundleId: https://api.rpubs.com/api/v1/document/1282391/26e3b6def33943c0bbefb2e93fd163bc
+url: http://rpubs.com/jeraldmelukkaran/1282391
+version: 1

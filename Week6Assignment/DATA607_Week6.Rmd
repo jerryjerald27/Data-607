@@ -1,0 +1,251 @@
+---
+title: "DATA607_Project2"
+author: "Jerald Melukkaran"
+date: "2025-03-09"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(stringr)
+library(tidyr)
+library(ggplot2)
+```
+
+### Introduction 
+
+In this assignment we select three data sets from the Week 5 discussions, clean them up and do the recommended analysis 
+
+
+### 1) Glassdoor job listings for data scientists  - Isaias Soto
+This data set is relevant to our field and looks at how the data field job market is across different companies and locations. It has some good information to work with once its cleaned up.  
+
+
+```{r}
+data <- read.csv("https://raw.githubusercontent.com/jerryjerald27/Data-607/refs/heads/main/Week6Assignment/Uncleaned_DS_jobs.csv")
+glimpse(data)
+```
+
+
+Out of the 15 columns, we are mainly interested in the the title, salary estimate, location, industry and sector, to perform the recommended analysis. We can split the salary estimate that is in the format "$137K-$171K (Glassdoor est.)"  
+Into Minimum salary , Maximum salary and even find an average salary. We can also split the Location into City and State and calculate the age of the company from its Founded date 
+
+
+```{r warning=FALSE}
+jobs <-  data %>%
+  select(Job.Title, Salary.Estimate, Location, Founded, Sector)
+
+jobs <- jobs %>%
+  mutate(
+    min_salary = as.numeric(str_extract(Salary.Estimate,  "([0-9]+)")), 
+    max_salary = as.numeric(str_extract(Salary.Estimate, "(?<=-\\$)([0-9]+)")), 
+    avg_salary = (min_salary + max_salary) / 2,  
+    company_age = 2025 - Founded , 
+  ) %>% 
+  separate(Location, into = c("city", "state"), sep = ", ", remove = FALSE) %>%
+  select(-Salary.Estimate, -Location,  -Founded)
+  
+```
+
+
+now we can plot how the average salary changes by state 
+
+```{r warning=FALSE}
+jobs_summary <- jobs %>%
+  group_by(state) %>%
+  summarise(avg_salary = mean(avg_salary, na.rm = TRUE)) %>%
+  arrange(desc(avg_salary))  
+jobs_de <- jobs %>% 
+  filter(state == "DE")
+
+
+ggplot(head(jobs_summary, 10), aes(x = reorder(state, -avg_salary), y = avg_salary, fill = state)) +
+  geom_bar(stat = "identity") +
+  labs(
+    title = "Average Salary by State",
+    x = "State",
+    y = "Average Salary (USD)"
+  ) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
+```
+
+Since DE only has one entry with a high salary job, it does far better than every other state. This is not indicative of the general job market ceiling. For example from personal experience New York should be up there in high paying jobs. But the state also has a lot of entry level jobs that would average it out to not being top 10. To maybe help decide where to move for a better pay we could shorten it down to the top 5 average salaries of each state to get a better picture of the highs. 
+
+
+```{r}
+jobs_summary_top5 <- jobs %>%
+  group_by(state) %>%
+  arrange(state, desc(avg_salary)) %>%
+  slice_head(n = 5) %>%
+  summarise(avg_top5_salary = mean(avg_salary, na.rm = TRUE)) %>%
+  arrange(desc(avg_top5_salary))  
+ggplot(head(jobs_summary_top5,10), aes(x = reorder(state, -avg_top5_salary), y = avg_top5_salary, fill = state)) +
+  geom_bar(stat = "identity") +
+  labs(
+    title = "Average of Top 5 Salaries by State",
+    x = "State",
+    y = "Average Salary (Top 5)"
+  ) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))  
+```
+
+Now we get a much better picture of where the top paying jobs in the field of data science are centered around. And as expected NY is right after DE and DC , then followed by VA, MA and CA the silicon valley of the country. 
+
+
+
+### 2) MDA Cancer Centre Data - Woodelyne Durosier
+
+This is a data set of breast cancer incidence rates in Houston across different racial and age demographics across the 4 year span between 2020 and 2024 
+
+```{r}
+data2 <- read.csv("https://raw.githubusercontent.com/jerryjerald27/Data-607/refs/heads/main/Week6Assignment/Uncleaned_MD_cancer.csv")
+glimpse(data2)
+```
+
+As mentioned in the discussion, columns Cases_2020 through 2024 can be pivoted into two columns Year: holding the year number and Cases: holding the number of cases. We can also drop irrelevant columns and focus on the Age groups, Race, Year and the type of cancer.  
+
+```{r}
+cancer_data_tidy <- data2 %>%
+
+  pivot_longer(cols = starts_with("Cases"), 
+               names_to = "Year",           
+               values_to = "Cases",         
+               names_prefix = "Cases_",   
+               values_drop_na = TRUE) %>%  
+  select( Age_Group, Race, Year, Cases, Type)
+
+head(cancer_data_tidy)
+```
+
+Now to analyse this data we could plot how cancer cases have evolved over the years for different age groups and for different races. 
+
+
+```{r}
+
+ggplot(cancer_data_tidy, aes(x = Year, y = Cases, fill = Race)) +
+  geom_bar(stat = "identity", position = "dodge") +  
+  labs(
+    title = "Cancer Cases by Race and Year",
+    x = "Year",
+    y = "Number of Cases",
+    fill = "Race"
+  )  
+```
+
+Here when plotting the cases by year and races, we can see that cancer cases have been linearly rising across all races. We can also observe that the cases have been lowest in the Asian community, followed by white, Hispanic and finally the most incidences seen in the black community. This might be indicative of certain genetic markers that predict cancer occurrences, or lifestyle changes between the races that might be conducive to breast cancer. 
+
+```{r}
+ggplot(cancer_data_tidy, aes(x = Year, y = Cases, color = Age_Group, group = Age_Group)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Cancer Cases by Age Group and Year",
+       x = "Year",
+       y = "Number of Cases") 
+```
+
+in this plot each vertical line is an age group, with points on the line denoting each of the races. Plotting across the ages also shows us the highest number of cases being reported in the age group of 50s followed by the 60s, 40s , 70s and then the 30s.Here also we can see the number of cases of cancer rising through the years in an almost linear fashion.  
+
+### 3) Pokemon Usage Rates 2022-2024 for Smogon and Worlds VGC - Lawrence Yu
+
+This data set contains information on usage statistics of Pokemon used in 2 separate tournaments Smogon and Worlds VGC across 2 years. Here as mentioned the Columns for the tournament data are written in a wide format like Smogon_VGC_Usage_2022 which includes the name of the tournament and the year. This can be pivoted longer to Tournament and Year columns to tidy up the data. 
+
+```{r}
+data3 <- read.csv("https://raw.githubusercontent.com/Megabuster/Data607/refs/heads/main/data/project2/pokemon_competitive_analysis.csv")
+
+data3_tidy <- data3 %>%
+  pivot_longer(cols = c(Smogon_VGC_Usage_2022, Smogon_VGC_Usage_2023, Smogon_VGC_Usage_2024,
+                        Worlds_VGC_Usage_2022, Worlds_VGC_Usage_2023, Worlds_VGC_Usage_2024),
+               names_to = c("Tournament", "Year"),
+               names_pattern = "(.*)_(\\d+)",
+               values_to = "Usage") %>%
+  mutate(
+    Tournament = gsub("_Usage", "", Tournament),  # Remove '_Usage'
+    Tournament = gsub("_VGC", " VGC", Tournament),  # Replace '_VGC' with ' VGC'
+    Usage = as.numeric(Usage)  # turn data showing "NoUsage" to NA
+  )
+glimpse(data3_tidy)
+```
+
+In the discussion, the suggested analysis was to see the relationship between usage statistics and total stats . I would like to focus on the top 50 used Pokemon from both tournaments in the year 2024 and see how their total_stats relate to their usage 
+
+
+```{r}
+
+
+smogon_top50 <- data3_tidy %>%
+  filter(Year == "2024") %>%
+  filter(Tournament == "Smogon VGC") %>%
+  arrange(desc(Usage)) %>% 
+  head(50)  
+
+head(smogon_top50 %>% select(name, Usage))
+
+worlds_top50 <- data3_tidy %>%
+    filter(Year == "2024") %>%
+  filter(Tournament == "Worlds VGC") %>%
+  arrange(desc(Usage)) %>%  
+  head(50)  
+
+tourneys_data_combined <- bind_rows(smogon_top50, worlds_top50)
+
+ggplot(tourneys_data_combined, aes(x = total_stats, y = Usage)) +
+  geom_point(aes(color = Tournament)) + 
+  labs(title = "Top 100 most used pokemon (2024) : Usage vs Total_stats",
+       x = "Total Stats",
+       y = "Usage",
+       color = "Tournament") 
+
+```
+
+This scatter plot tells us that the total_stats of the popularly used Pokemon all lie better 250 and 600. There also seems to be pretty defined line at 600 for both tournaments which lead me to believe that there might be a total_stats cutoff for these tournaments. But we also see some outliers towards the 700 but only for the Smogon VGC. Comparing the two tournaments, the players in Worlds tend to pick Pokemon with lower total stats than those playing Smogon. Players in Smogon also seem to have a clear favorite sitting all the way up by itself at 59.6, flutter-mane, a dual type ghost-fairy paradox Pokemon. 
+
+
+We can also plot the types of the most common types of Pokemon used with how they compare to each other. 
+
+```{r}
+
+type_colors <- c(
+  ghost = "purple",
+  fighting = "red",
+  fire = "orange",
+  grass = "darkgreen",
+  steel = "lightgrey",
+  flying = "cyan",
+  electric = "yellow",
+  dragon = "orange",
+  psychic = "pink",
+  water = "blue",
+  ground = "brown",
+  ice = "lightblue",
+  rock = "black",
+  bug = "magenta",
+  fairy = "lightpink"
+  )
+
+## Order by descending highest usage Pokemon within each type 
+tourneys_data_combined_desc <- tourneys_data_combined %>%
+  group_by(type1) %>%
+  mutate(max_usage = max(Usage)) %>% 
+  ungroup() %>%
+  mutate(type1 = factor(type1, levels = names(sort(tapply(max_usage, type1, max), decreasing = TRUE)))) %>%
+  select(-max_usage)  
+
+# Plotting types against the usage 
+ggplot(tourneys_data_combined_desc, aes(x = type1, y = Usage, color = type1)) +
+  geom_point(size = 3) + 
+  scale_color_manual(values = type_colors) + 
+  labs(title = "Top 100 Most Used Pokémon 2024: Usage vs Main Type",
+       x = "Pokémon Type",
+       y = "Usage",
+       color = "Type") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "none")
+```
+
+Here again we see Flutter-Mane making sure that the ghost type is way ahead of everyone else. Its followed closely by the fighting types , which makes sense for a tournament, and then my personal favorite when I was a kid, the fire types and their rivals the grass type. 
+
+
+### Conclusion 
+
+We were able to clean up all three data sets, convert them into the standard from of observation rows and variable columns , and extract relevant insights from the data after plotting the important variables against each other. 
+
