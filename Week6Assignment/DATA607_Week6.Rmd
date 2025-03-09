@@ -92,7 +92,21 @@ ggplot(head(jobs_summary_top5,10), aes(x = reorder(state, -avg_top5_salary), y =
 
 Now we get a much better picture of where the top paying jobs in the field of data science are centered around. And as expected NY is right after DE and DC , then followed by VA, MA and CA the silicon valley of the country. 
 
+Isaias was also interested in discovering a relationship between company sectors and how the average salaries compare. We could use another box plot for this to show the distribution of various salaries across different sectors.   
 
+
+```{r}
+ggplot(jobs, aes(x = Sector, y = avg_salary)) +
+  geom_boxplot() +
+  labs(
+    title = "Salary Distribution by Company Sector",
+    x = "Company Sector",
+    y = "Average Salary (in 1000 USD)"
+  ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  
+```
+
+This plot gives us great insights into the distribution of salaries. While every sector has some high paying outliers, the consumer sector is clear ahead with their entire range falling above most other sectors. This is to be expected as data scientists are being increasingly employed by online marketplaces to analyse the vast amount of consumer data they have to market better. 
 
 ### 2) MDA Cancer Centre Data - Woodelyne Durosier
 
@@ -118,7 +132,7 @@ cancer_data_tidy <- data2 %>%
 head(cancer_data_tidy)
 ```
 
-Now to analyse this data we could plot how cancer cases have evolved over the years for different age groups and for different races. 
+Now to analyse this data we could plot how cancer cases have evolved over the years for different age groups and for different races. This can help us identify any obvious trends when it comes to certain age groups or races. 
 
 
 ```{r}
@@ -133,7 +147,9 @@ ggplot(cancer_data_tidy, aes(x = Year, y = Cases, fill = Race)) +
   )  
 ```
 
-Here when plotting the cases by year and races, we can see that cancer cases have been linearly rising across all races. We can also observe that the cases have been lowest in the Asian community, followed by white, Hispanic and finally the most incidences seen in the black community. This might be indicative of certain genetic markers that predict cancer occurrences, or lifestyle changes between the races that might be conducive to breast cancer. 
+Here when plotting the cases by year and races, we can see that cancer cases have been linearly rising across all races. We can also observe that the cases have been lowest in the Asian community, followed by white, Hispanic and finally the most incidences seen in the black community. This might be indicative of certain genetic markers that predict cancer occurrences, or lifestyle changes between the races that might be conducive to breast cancer.
+
+Our next suggestion was to analyse the patterns between age groups and breast cancer incidences in the women of Houtson. For this we can use a line and point plot as an extremely simple and easy to understand ggplot to that is able to identify relationships with relative ease.  
 
 ```{r}
 ggplot(cancer_data_tidy, aes(x = Year, y = Cases, color = Age_Group, group = Age_Group)) +
