@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<books>
+    <book>
+        <title>The Art of Thinking Clearly</title>
+        <author>Rolf Dobelli</author>
+        <rating>4.1</rating>
+        <genre>Non-fiction, Psychology</genre>
+    </book>
+    <book>
+        <title>The Last Wish</title>
+        <author>Andrzej Sapkowski</author>
+        <rating>4.5</rating>
+        <genre>Fantasy</genre>
+    </book>
+    <book>
+        <title>Good Omens</title>
+        <author>Neil Gaiman, Terry Pratchett</author>
+        <rating>4.7</rating>
+        <genre>Fantasy, Comedy</genre>
+    </book>
+</books>

@@ -1,0 +1,22 @@
+{
+  "books": [
+    {
+      "title": "The Art of Thinking Clearly",
+      "author": "Rolf Dobelli",
+      "rating": 4.1,
+      "genre": "Non-fiction, Psychology"
+    },
+    {
+      "title": "The Last Wish",
+      "author": "Andrzej Sapkowski",
+      "rating": 4.5,
+      "genre": "Fantasy"
+    },
+    {
+      "title": "Good Omens",
+      "author": "Neil Gaiman, Terry Pratchett",
+      "rating": 4.7,
+      "genre": "Fantasy, Comedy"
+    }
+  ]
+}

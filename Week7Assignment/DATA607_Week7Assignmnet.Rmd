@@ -1,0 +1,131 @@
+---
+title: "DATA607_Week7Assignment"
+author: "Jerald Melukkaran"
+date: "2025-03-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,warning = FALSE, message = FALSE)
+```
+
+
+```{r}
+
+library(xml2)
+library(jsonlite)
+library(XML)
+library(dplyr)
+
+```
+
+### Introduction 
+
+In this assignment we look at three books, namely 
+
+The Art of thinking clearly,  
+The Last Wish,  
+Good Omens 
+
+We manually create an html, xml and json table and import them into this RMD file to compare them. 
+
+```{r}
+html_file <- "books.html" 
+html_data <- readHTMLTable(html_file, stringsAsFactors = FALSE)
+df_html <- html_data[[1]]
+
+xml_file <- "books.xml"
+xml_data <- read_xml(xml_file)
+df_xml <- data.frame(
+  Title = xml_text(xml_find_all(xml_data, "//book/title")),
+  Author = xml_text(xml_find_all(xml_data, "//book/author")),
+  Rating = as.numeric(xml_text(xml_find_all(xml_data, "//book/rating"))),
+  Genre = xml_text(xml_find_all(xml_data, "//book/genre")),
+  stringsAsFactors = FALSE
+)
+
+json_file <- "books.json"  
+json_data <- fromJSON(json_file)
+
+df_json <- as.data.frame(json_data$books)
+
+```
+
+### Eye test 
+
+Now to compare the three different data frames. We can first display them with knitr:kable and see how they look. 
+
+```{r}
+knitr::kable((df_html),"simple")
+knitr::kable((df_json),"simple")
+knitr::kable((df_xml),"simple")
+
+```
+
+As we can see the three tables look completely identical here in a basic eye test. 
+
+
+#### Using identical()
+
+Now we can first use function identical () and all_equal() to see what R thinks of the data frames
+```{r}
+
+identical(df_html, df_xml)  
+identical(df_html, df_json) 
+identical(df_xml, df_json)  
+
+```
+
+
+Identical returns false for all comparisons . This might be due to reasons such as data types not being consistent across the data frames,possible additional metadata or additional hidden attributes being passed by the different file types or the libraries used to extract them. It might also be differences in characters or white spaces.  
+
+#### Using all.equal()
+
+We can also use dplyr function all.equal(). Its more useful as it specifies the differences that it finds 
+
+```{r}
+
+all.equal(df_html, df_xml)  
+all.equal(df_html, df_json) 
+all.equal(df_xml, df_json)  
+
+```
+
+Here we can see that there is a difference in column data types and apparent string mismatches.  
+The data type issue does not crop up when comparing the XML and the JSON, so it has to be an issue with the HTML files component 3 .   
+Additionally the string mismatch is not an issue between the HTML and the XML. So it has to be an issue introduced with the JSON.
+
+We can verify the data types separately
+```{r}
+
+sapply(df_html, class)
+sapply(df_xml, class)
+sapply(df_json, class)
+
+```
+
+We can now clearly see that the html table characterized the rating field as a character while the others correctly considered it as numeric. Lets see what happens if we force it to be numeric 
+
+```{r}
+df_html$Rating <- as.numeric(df_html$Rating)
+all.equal(df_html, df_xml)  
+all.equal(df_html, df_json) 
+all.equal(df_xml, df_json)  
+```
+
+It is at this point that I realized that I had written out the field names in all lowercase for the json, while both the other tables had an uppercase letter in the beginning. Causing the string mismatches. Lets correct for that 
+
+```{r}
+
+colnames(df_json) <- c("Title", "Author", "Rating", "Genre")
+all.equal(df_html, df_xml)  
+all.equal(df_html, df_json) 
+all.equal(df_xml, df_json) 
+identical(df_html, df_xml) 
+identical(df_html, df_json) 
+identical(df_xml, df_json) 
+```
+
+Now its all equal using both functions. 
+
+
