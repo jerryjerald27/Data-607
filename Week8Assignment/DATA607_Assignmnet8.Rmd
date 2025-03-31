@@ -1,0 +1,154 @@
+---
+title: "DATA607_Assignment8"
+author: "Jerald Melukkaran"
+date: "2025-03-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+```   
+
+### Introduction 
+
+In this assignment we use the Books API which is a free resource from New York times to get data for the current Top sellers across different mediums and categories and gives us detailed information regarding their publishers, authors, type, ranking and their longevity . It has multiple endpoints that give us different sets of information regarding categories or reviews 
+
+https://developer.nytimes.com/docs/books-product/1/routes/lists/full-overview.json/get
+
+
+
+### Cleanup 
+
+While working through the specialized endpoints for hitting individual categories I had issues with hitting rate limits and not being able to consistently get information that i needed. This led me to use the full overview endpoint to get every all retrievable data from the Books API. This comes at the cost of response times and further cleaning that would be required as the format of this data is complicated. 
+
+The URL format to call this endpoint is 
+"https://api.nytimes.com/svc/books/v3/full-overview.json"
+With the argument being the preregistered API key 
+
+The data we need is inside   
+Books : an Array of Objects , inside   
+Lists : an Array of objects , inside   
+Results : An object. inside the response JSON  
+
+We first loop through all the lists, and for each individual list , we convert the books array into a data frame
+
+```{r include=FALSE}
+library(httr)
+library(jsonlite)
+library(dplyr)
+library(ggplot2)
+
+api_key <- Sys.getenv("NYT_API_KEY")
+base_url <- "https://api.nytimes.com/svc/books/v3"
+```
+
+
+```{r}
+fetch_best_sellers_full_overview <- function(api_key) {
+  base_url <- "https://api.nytimes.com/svc/books/v3"
+  request_url <- paste0(base_url, "/lists/full-overview.json?api-key=", api_key)
+  response <- GET(request_url)
+  if (status_code(response) == 200) {
+    response_data <- content(response, as = "parsed", simplifyVector = TRUE)
+    all_books_data <- list()
+    for (i in 1:nrow(response_data$results$lists)) {
+      list_item <- response_data$results$lists[i, ]
+      books_df <- data.frame(list_item$books[[1]]) %>%
+        select(rank, weeks_on_list, publisher, title, author)
+
+      books_df$list_name <- list_item$list_name
+
+      all_books_data[[i]] <- books_df
+    }
+
+    all_books_df <- bind_rows(all_books_data)
+    
+    return(all_books_df)
+  
+  } else {
+    print("Failed to retrieve best-seller list data.")
+    return(NULL)
+  }
+}
+
+all_books <- fetch_best_sellers_full_overview(api_key)
+```
+
+When I observed this data set , i noticed that there are almost 70 different categories. These categories can be combined with key terms to get different mediums which are more interesting to me. 
+
+```{r}
+all_books <- all_books %>%
+  mutate(medium = case_when(
+    grepl("Hardcover", list_name) ~ "Hardcover",
+    grepl("Paperback", list_name) ~ "Paperback",
+    grepl("E-Book", list_name) ~ "E-book",
+    grepl("Manga", list_name) ~ "Graphic-Books-And-Manga",
+    TRUE ~ "Other"
+  ))
+```
+
+### Analysis 
+
+We can now analyse this data set. In interested in looking at how the medium the book is published in affects how long these top sellers stay in the top selling list. In also interested in analyzing how the distribution between mediums look like for the top selling authors and publishers 
+
+#### By Medium 
+
+```{r}
+ggplot(all_books, aes(x = medium, y = weeks_on_list, fill = medium)) +
+  geom_boxplot(alpha = 0.7) +
+  labs(title = "Distribution of Weeks on Bestsellers List by List Name",
+       x = "List Name", y = "Weeks on List") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +  
+  ylim(0,100)
+```
+
+This shows us that E-books have the highest number of their top sellers staying the longest in the top seller lists. This might be due to their ease of access and purchase which is a lot higher when compared to Printed books. We can see that graphic books and manga often don't remain in the top sellers list for even a week as these are mostly educational books that are a lot higher in frequency and are being pumped out more frequently  
+
+#### By Publishers 
+
+```{r}
+
+top_publishers <- all_books %>%
+  group_by(publisher) %>%
+  summarise(book_count = n()) %>%
+  arrange(desc(book_count)) %>%
+  top_n(5, book_count)
+
+top_publishers_books <- all_books %>%
+  filter(publisher %in% top_publishers$publisher)
+
+
+ggplot(top_publishers_books, aes(x = publisher, fill = medium)) +
+  geom_bar(position = "stack") +
+  labs(title = "Distribution of Book Categories for Top 5 Publishers",
+       x = "Publisher", y = "Number of Books",
+       fill = "Category") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+Ranking by publishers we see Scholastic having the highest number of books in the top sellers list, with their majority stake being held in graphic books presumably for school children. For the other publishers Hardcovers seem to be the next most commonly present medium which gets into the top selling lists. 
+
+#### By Author 
+
+```{r}
+top_authors <- all_books %>%
+  group_by(author) %>%
+  summarise(book_count = n()) %>%
+  arrange(desc(book_count)) %>%
+  top_n(5, book_count)
+
+top_authors_books <- all_books %>%
+  filter(author %in% top_authors$author)
+
+
+ggplot(top_authors_books, aes(x = author, fill = medium)) +
+  geom_bar(position = "stack") +
+  labs(title = "Distribution of Book Categories for Top 5 Authors",
+       x = "Author", y = "Number of Books",
+       fill = "Medium") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+
+```
+
+When looking at Authors We see Dav Pilkey , the creator of captain underpants take the win with just Graphic books, followed by Rebecca Yarros with her Series THE EMPYREAN pushing her to the most recent top selling lists with an almost equal spread in E books, Hardcovers and Other forms of media
