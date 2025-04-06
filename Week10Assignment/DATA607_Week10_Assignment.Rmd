@@ -1,0 +1,180 @@
+---
+title: 'DATA 607 : Week 10 Assignment'
+author: "Jerald Melukkaran"
+date: "2025-04-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(janeaustenr)
+library(dplyr)
+library(stringr)
+library(tidytext)
+library(tidyr)
+library(ggplot2)
+library(textdata) 
+library(rlang)
+
+```
+
+#### Introduction 
+
+This assignment focuses on performing sentiment analysis on Large text data to interprent common sentiment trends 
+
+
+##### Question Part 1 : Primary Example 
+
+The first task is to get the primary example from chapter 2 working in an R Markdown document. The first major example and plot the chapter discusses is using the bing lexicon (Hu, Minqing and Liu, Bing, 2004) on each of Jane Austens novels to show changes in sentiments when split into 80 line chunks 
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+tidy_books <- austen_books() %>%
+  group_by(book) %>%
+  mutate(
+    linenumber = row_number(),
+    chapter = cumsum(str_detect(text,
+                                regex("^chapter [\\divxlc]",
+                                      ignore_case = TRUE)))) %>%
+  ungroup() %>%
+  unnest_tokens(word, text)
+
+jane_austen_sentiment <- tidy_books %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(book, index = linenumber %/% 80, sentiment) %>%
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>%
+  mutate(sentiment = positive - negative)
+
+ggplot(jane_austen_sentiment, aes(index, sentiment, fill = book)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~book, ncol = 2, scales = "free_x")
+
+```
+
+
+#### Question Part 2 : Using another corpus 
+
+The second part is using another text corpus to do sentiment analysis on. Growing up I was always interested in the Harry Potter novels. Luckily there's a R package with the full text for all the Harry potter novels. I'm interested in using the NRC lexicon (Saif M. Mohammad and Peter Turney. 2013) to see the difference in the spread of sentiments between the very first book, commonly known as a source of joy and awe vs the last book which takes a much more serious tone. I was trying to find a new way to plot this data instead of using a bar chart and I also managed to find how to make radar plots in R using the library fmsb and decided to give that a try. 
+
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+plot_hp_nrc_radar_normalized <- function() {
+  library(harrypotter)
+  library(fmsb)
+
+  books <- list(
+    philosophers_stone = harrypotter::philosophers_stone,
+    deathly_hallows = harrypotter::deathly_hallows
+  )
+
+  nrc <- textdata::lexicon_nrc()
+
+   sentiment_data <- purrr::map_dfr(names(books), function(name) {
+    tibble(chapter = 1:length(books[[name]]), text = books[[name]]) %>%
+      unnest_tokens(word, text) %>%
+      inner_join(nrc, by = "word") %>%
+      count(sentiment) %>%
+      mutate(book = name) %>%
+      group_by(book) %>%
+      mutate(prop = n / sum(n)) %>%
+      select(book, sentiment, prop)
+  })
+
+  radar_data <- sentiment_data %>%
+    tidyr::pivot_wider(names_from = sentiment, values_from = prop, values_fill = 0) %>%
+    tibble::column_to_rownames("book")
+
+    max_min <- rbind(rep(0.19, ncol(radar_data)), rep(0, ncol(radar_data)))  # reasonable max
+  colnames(max_min) <- colnames(radar_data)
+
+  radar_input <- rbind(max_min, radar_data)
+
+  # Radar chart
+  colors_border <- c("blue", "red")
+  colors_in <- scales::alpha(colors_border, 0.3)
+
+  radarchart(
+    radar_input,
+    pcol = colors_border,
+    pfcol = colors_in,
+    plwd = 1,
+    pty = 20,
+    pch = 16,
+    cglcol = "grey",
+    cglty = 1,
+    axislabcol = "grey",
+    caxislabels = seq(0, 0.25, 0.05),
+    cglwd = 0.8,
+    vlcex = 0.8,
+    title = "Normalized Sentiment Comparison (Radar Chart)"
+  )
+
+  legend("topright", legend = rownames(radar_data), bty = "n",
+         pch = 20, col = colors_border, text.col = "black", cex = 0.8, pt.cex = 1.5)
+}
+
+plot_hp_nrc_radar_normalized()
+```
+
+
+From what I can notice the distribution remains almost the same. I guess that is to expect since the author and her writing style is the same across the books. But as i expected The first book philosphers stone does better in words pertaining to Trust, joy, Anticipation and generally Positive , While the last book stands higher in Fear, Disgust, Sadness and Overall Negative. 
+
+
+#### Question Part 3: 
+
+For this part we can Try another lexicon SentiWordNet 3.0 (Baccianella et al., LREC 2010) that categorizes words with objective scores. 
+
+
+```{r}
+get_sentiwordnet_no_neutral <- function(book) {
+  require(syuzhet)  
+  
+  tibble(text = get(book)) %>%
+    unnest_tokens(word, text) %>%
+    mutate(sentiment_score = syuzhet::get_sentiment(word, method = "syuzhet"),
+           sentiment_category = case_when(
+             sentiment_score > 0 ~ "positive",
+             sentiment_score < 0 ~ "negative",
+             TRUE ~ "neutral"
+           )) %>%
+    filter(sentiment_category != "neutral") %>%
+    mutate(book = book) %>%
+    count(book, sentiment_category) %>%
+    rename(count = n)
+}
+
+first_book_counts <- get_sentiwordnet_no_neutral("philosophers_stone")
+last_book_counts <- get_sentiwordnet_no_neutral("deathly_hallows")
+
+sentiment_data <- bind_rows(first_book_counts, last_book_counts)
+
+sentiment_data <- sentiment_data %>%
+  group_by(book) %>%
+  mutate(proportion = count / sum(count)) %>%
+  ungroup()
+
+library(ggplot2)
+ggplot(sentiment_data, aes(x = book, y = proportion, fill = sentiment_category)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Proportions of Positive and Negative Sentiments",
+       x = "Book",
+       y = "Proportion of Sentiment Words",
+       fill = "Sentiment Category") +
+  theme_minimal()
+```
+
+
+As we can see even with another lexicon used the use of positive and negative words are flipped around between the first book in the series vs the last book in the series 
+
+
+#### Citations 
+
+1.[Mining and summarizing customer reviews.'', Proceedings of the ACM SIGKDD International Conference on Knowledge Discovery & Data Mining (KDD-2004)](https://emilhvitfeldt.github.io/textdata/reference/lexicon_bing.html)(Hu, Minqing and Liu, Bing, 2004)
+
+2.[Crowdsourcing a Word-Emotion Association Lexicon. Computational Intelligence, 29(3): 436-465](https://saifmohammad.com/WebPages/NRC-Emotion-Lexicon.html)(Saif M. Mohammad and Peter Turney. 2013)
+
+3.[SentiWordNet 3.0: An Enhanced Lexical Resource for Sentiment Analysis and Opinion Mining](https://aclanthology.org/L10-1531/) (Baccianella et al., LREC 2010)
+
+
