@@ -23,7 +23,7 @@ library(rlang)
 
 #### Introduction 
 
-This assignment focuses on performing sentiment analysis on Large text data to interprent common sentiment trends 
+This assignment focuses on performing sentiment analysis on Large text data to interpret common sentiment trends 
 
 
 ##### Question Part 1 : Primary Example 
@@ -119,7 +119,7 @@ plot_hp_nrc_radar_normalized()
 ```
 
 
-From what I can notice the distribution remains almost the same. I guess that is to expect since the author and her writing style is the same across the books. But as i expected The first book philosphers stone does better in words pertaining to Trust, joy, Anticipation and generally Positive , While the last book stands higher in Fear, Disgust, Sadness and Overall Negative. 
+From what I can notice the distribution remains almost the same. I guess that is to expect since the author and her writing style is the same across the books. But as i expected The first book philosophers stone does better in words pertaining to Trust, joy, Anticipation and generally Positive , While the last book stands higher in Fear, Disgust, Sadness and Overall Negative. 
 
 
 #### Question Part 3: 
