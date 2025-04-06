@@ -127,9 +127,9 @@ From what I can notice the distribution remains almost the same. I guess that is
 For this part we can Try another lexicon SentiWordNet 3.0 (Baccianella et al., LREC 2010) that categorizes words with objective scores. 
 
 
-```{r}
+```{r echo=TRUE}
 get_sentiwordnet_no_neutral <- function(book) {
-  require(syuzhet)  
+  library(syuzhet)  
   
   tibble(text = get(book)) %>%
     unnest_tokens(word, text) %>%
