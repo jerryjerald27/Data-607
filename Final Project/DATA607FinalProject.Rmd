@@ -1,0 +1,511 @@
+---
+title: "DATA 607 Final Project"
+author: "Jerald melukkaran"
+output: html_document
+---
+### Introduction
+
+THis RMD includes the collection, cleaning and analysis of the data used for my DATA 607 Final project presentation. The topic for the presentation is a study on motorcycle accidents across the united states and how factors such as rider age, speed, alcohol involvement, time of day and use of protective gear influence motorcycle crash severity rates. The RMD will focus mainly on the code while the presentation will focus on the analytics and interpretations of the data 
+
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+	message = FALSE,
+	warning = FALSE
+)
+```
+
+
+
+---
+
+### Source
+
+2023 Crash Report Sampling System (CRSS),  by the National Highway Traffic Safety Administration (NHTSA):
+
+- Complete root file : https://www.nhtsa.gov/file-downloads?p=nhtsa/downloads/CRSS/
+- CRSS Public Use Files: https://www.nhtsa.gov/crash-data-systems/crash-report-sampling-system#how-the-information-is-used
+
+Individual Datasets used 
+
+- Accident : For  crash characteristics
+- Vehicle : For vehicle characteristics and type 
+- Person : For information such as age, sex, restraint use, and injury severity 
+- Weather : For weather conditions during the crash 
+- Drimpair : For information on any possible impairments that might have contributed to the crash 
+
+
+USer manual : https://crashstats.nhtsa.dot.gov/Api/Public/ViewPublication/813707
+
+
+
+---  
+
+```{r setup, echo=TRUE, results='hide', warning=FALSE, message=FALSE}
+
+
+library(dplyr)
+library(readr)
+library(ggplot2)
+
+
+accident <- read_csv("CRSS2023csv/accident.csv", 
+                     col_select = c(CASENUM, MAX_SEV, ALCOHOL, WEATHR_IM, HOUR_IM))
+
+vehicle <- read_csv("CRSS2023csv/vehicle.csv", 
+                    col_select = c(CASENUM, TRAV_SP, VPICBODYCLASS, VSPD_LIM))
+
+person <- read_csv("CRSS2023csv/person.csv", 
+                   col_select = c(CASENUM, AGE, ALC_RES, HELM_USE))
+
+crash_data <- accident %>%
+  left_join(vehicle, by = "CASENUM") %>%
+  left_join(person, by = "CASENUM")
+
+crash_data <- crash_data %>%
+  mutate(
+    VEHICLE_TYPE = case_when(
+      VPICBODYCLASS %in% c(6, 12) ~ "Motorcycle",
+      TRUE ~ "Other Vehicle"
+    )
+  )
+
+glimpse(crash_data)
+```
+
+
+### Variables
+
+##### Dependant variables 
+
+- MAX_SEV : The main dependent variable for this study is the Maximum Injury severity in the crash. This is categorical with 4 being fatal, 3 serious, 1 minor and 0 uninjured. This variable can be found in the main accident dataset. 
+
+##### Independant variables: 
+
+- From dataset Accident: 
+  - ALCHOHOL : Informs if alcohol was involved in the crash. 1 for yes, 2 for no.
+  - WEATHER : For information on weather conditions present during the crash
+
+- From dataset Vehicle: 
+  - TRAV_SP : Estimated Speed at the time of crash (quantitative) (from Vehicle)
+  - VPICBODYCLASS : For the category of vehicle. This is 6 for standard motorcycles, and 12 for scooters (from Vehicle)
+
+- From dataset Person: 
+  - AGE : Rider age (quantitative) 
+  - ALC_RES – Exact results of an alcohol test when applicable
+  - HELM_USE – Whether the rider was wearing a helmet or other protective gear (categorical). 17 is the code for no helmet use while 5,16 and 19 determines the category of DOT compliance for the helmet being used 
+
+
+---
+### Relevant summary statistics 
+
+
+
+
+```{r}
+crash_data_clean <- crash_data %>%
+  filter(MAX_SEV %in% 0:4) %>%
+  mutate(
+    MAX_SEV_LABEL = factor(MAX_SEV, levels = 0:4, labels = c(
+      "No Injury", 
+      "Possible Injury", 
+      "Minor Injury", 
+      "Serious Injury", 
+      "Fatal"
+    ))
+  )
+
+total_motorcycle <- crash_data_clean %>% filter(VEHICLE_TYPE == "Motorcycle") %>% nrow()
+total_other <- crash_data_clean %>% filter(VEHICLE_TYPE == "Other Vehicle") %>% nrow()
+```
+
+##### Accident Severity (MAX_SEV)
+
+```{r}
+
+severity_counts <- crash_data_clean %>%
+  group_by(VEHICLE_TYPE, MAX_SEV_LABEL) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  mutate(prop = case_when(
+    VEHICLE_TYPE == "Motorcycle" ~ n / total_motorcycle,
+    VEHICLE_TYPE == "Other Vehicle" ~ n / total_other
+  ))
+ggplot(severity_counts, aes(x = MAX_SEV_LABEL, y = prop, fill = VEHICLE_TYPE)) +
+  geom_col(position = "dodge") +
+  labs(
+    title = "Proportional Injury Severity by Vehicle Type",
+    x = "Injury Severity",
+    y = "Proportion of Crashes",
+    fill = "Vehicle Type"
+  ) +
+  scale_y_continuous(labels = scales::percent) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+Here we can see that  while almost 40 percent of Other vehicle crashes lead to no injury, 40 percent of motorcycle crashes lead to at least a minor injury. The proportion of injury severity all the way up to fatal injuries are also higher for motorcycles 
+
+##### Age  (AGE)
+
+```{r}
+ crash_data_age <- crash_data_clean %>%
+   filter(!is.na(AGE), AGE <= 120) %>%
+   mutate(
+     AGE_GROUP = cut(
+       AGE,
+       breaks = c(17, 25, 35, 45, 55, 65, 75, 85, 120),
+       labels = c("18–25", "26–35", "36–45", "46–55", "56–65", "66–75", "76–85", "86+"),
+       right = TRUE
+     )
+   )
+
+ crash_data_clean <- crash_data_clean %>%
+   filter(!is.na(AGE), AGE <= 120)
+ age_props <- crash_data_age %>%
+   group_by(VEHICLE_TYPE, AGE_GROUP) %>%
+   summarise(n = n(), .groups = "drop") %>%
+   mutate(prop = case_when(
+     VEHICLE_TYPE == "Motorcycle" ~ n / total_motorcycle,
+     VEHICLE_TYPE == "Other Vehicle" ~ n / total_other
+   ))
+
+ ggplot(age_props, aes(x = AGE_GROUP, y = prop, fill = VEHICLE_TYPE)) +
+   geom_col(position = "dodge") +
+   labs(
+     title = "Age Distribution of Riders/Drivers by Vehicle Type",
+     x = "Age Group",
+     y = "Proportion of Crashes",
+     fill = "Vehicle Type"
+   ) +
+   scale_y_continuous(labels = scales::percent_format())
+
+
+
+```
+
+When looking at Age the trends seem similar with the age group of 18-36 having the highest proportions of crashes across all vehicle types 
+
+
+
+Scatter plot 
+
+```{r}
+crash_data_age_sampled <- crash_data_age %>%
+  filter(VEHICLE_TYPE == "Motorcycle")
+
+ggplot(crash_data_age_sampled, aes(x = AGE, y = as.numeric(MAX_SEV_LABEL))) +
+  geom_jitter(aes(color = MAX_SEV_LABEL), width = 0, height = 0.2) +
+   geom_smooth(method = "loess", se = FALSE) +
+  labs(title = "Age vs Severity : Motorcycles", y = "Severity Level", x = "Age") +
+  theme_minimal()
+```
+
+
+
+##### Speed at time of accident (TRAV_SP)
+
+```{r}
+
+ crash_data_speed <- crash_data_clean %>%
+   filter(VSPD_LIM <= 95, !is.na(TRAV_SP) & TRAV_SP > 0 & TRAV_SP < 900 ) %>%
+   mutate(
+     SPEED_GROUP = cut(
+       TRAV_SP,
+       breaks = c(0, 25, 45, 65, 100,120, 900, Inf),
+       labels = c("0–25", "26–45", "46–65", "66–100", "101–120", "121+", "Unknown"),
+       right = TRUE
+     )
+   )
+
+ speed_props <- crash_data_speed %>%
+   group_by(VEHICLE_TYPE, SPEED_GROUP) %>%
+   summarise(n = n(), .groups = "drop") %>%
+   mutate(prop = case_when(
+     VEHICLE_TYPE == "Motorcycle" ~ n / total_motorcycle,
+     VEHICLE_TYPE == "Other Vehicle" ~ n / total_other
+   ))
+
+ ggplot(speed_props, aes(x = SPEED_GROUP, y = prop, fill = VEHICLE_TYPE)) +
+   geom_col(position = "dodge") +
+   labs(
+     title = "Estimated Crash Speed by Vehicle Type",
+     x = "Speed Group (mph)",
+     y = "Proportion of Crashes",
+     fill = "Vehicle Type"
+   ) +
+   scale_y_continuous(labels = scales::percent_format())
+
+
+```
+
+Here we see that for all the crashes where the speed before the crash was identified,the majority are low speed crashes. These might be single vehicle crashes or intersections, or low speed traffic collision. 
+
+
+
+```{r }
+ crash_data_speed_sampled <- crash_data_speed %>%
+   filter (VEHICLE_TYPE == "Motorcycle") %>%
+    mutate(
+    Overspeed = TRAV_SP - VSPD_LIM
+  )
+
+
+ ggplot(crash_data_speed_sampled, aes(x = TRAV_SP, y = as.numeric(MAX_SEV_LABEL))) +
+   geom_jitter(aes(color = MAX_SEV_LABEL), width = 0, height = 0.2) +
+   geom_smooth(method = "loess", se = FALSE) +
+   labs(
+     title = "Travel Speed vs Accident Severity : Motrocycles ",
+     x = "Travel Speed (mph)",
+     y = "Severity Level"
+   )
+```
+
+But when considering severity all of the non injury crashes where below 30 and severity increased as the speed increased. 
+
+```{r }
+
+ggplot(crash_data_speed_sampled, aes(x = Overspeed, y = as.numeric(MAX_SEV_LABEL))) +
+  geom_jitter(aes(color = MAX_SEV_LABEL), width = 0, height = 0.2) +
+geom_smooth(method = "loess", se = FALSE) +
+  labs(
+    title = "Crash Severity vs Overspeeding (TRAV_SP - VSPD_LIM)",
+    x = "Overspeeding (mph over speed limit)",
+    y = "Maximum Injury Severity (MAX_SEV)"
+  )
+
+
+```
+
+While non injury crashes hovered around 5 to 10mph lower than the speed limit, more serious injuries start to pop up at both extremes 
+
+
+##### Alchohol presence (Alchohol) 
+
+```{r echo=FALSE}
+
+
+ crash_data_alcohol <- crash_data_clean %>%
+   filter(ALCOHOL %in% c(1, 2)) %>%
+   filter(VEHICLE_TYPE == "Motorcycle") %>%
+   mutate(
+     ALCOHOL_LABEL = factor(
+       ALCOHOL,
+       levels = c(1, 2),
+       labels = c("Alcohol Involved", "No Alcohol")
+     )
+   )
+
+ alcohol_props <- crash_data_alcohol %>%
+   group_by(VEHICLE_TYPE, ALCOHOL_LABEL) %>%
+   summarise(n = n(), .groups = "drop") %>%
+   mutate(prop = case_when(
+     VEHICLE_TYPE == "Motorcycle" ~ n / total_motorcycle,
+     VEHICLE_TYPE == "Other Vehicle" ~ n / total_other
+   ))
+
+ alcohol_props
+
+
+ crash_data_alcohol %>%
+   count(ALCOHOL_LABEL, MAX_SEV_LABEL) %>%
+   group_by(ALCOHOL_LABEL) %>%
+   mutate(proportion = n / sum(n)) %>%
+   ggplot(aes(x = ALCOHOL_LABEL, y = proportion, fill = MAX_SEV_LABEL)) +
+   geom_bar(stat = "identity") +
+   geom_text(aes(label = scales::percent(proportion)),
+             position = position_stack(vjust = 0.5)) +
+   labs(title = "Severity Distribution by Alcohol Involvement",
+        y = "Proportion of Severity",
+        x = "Alcohol Involvement") +
+   theme_minimal()
+
+```
+
+
+##### Helmet Usage (HELM_USE) 
+
+```{r echo=FALSE}
+crash_data_helm <- crash_data_clean %>%
+  filter(VEHICLE_TYPE == "Motorcycle") %>%
+  filter(HELM_USE %in% c(17, 5,16,19)) %>%
+  mutate(
+    HELM_USE_LABEL = case_when(
+      HELM_USE %in% c(17) ~ "No Helmet",
+      HELM_USE %in% c(5,16,19) ~ "DOT Helmet",
+      TRUE ~ "Unknown"
+    )
+  )
+
+total_motorcycle_helm <- crash_data_helm %>% nrow()
+
+helm_props_motorcycle <- crash_data_helm %>%
+  group_by(HELM_USE_LABEL) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  mutate(prop = n / total_motorcycle_helm)
+
+helm_props_motorcycle
+
+
+```
+
+
+
+
+
+Plotting 
+
+```{r}
+
+crash_helm_pct <- crash_data_helm %>%
+  count(HELM_USE_LABEL, MAX_SEV_LABEL) %>%
+  group_by(HELM_USE_LABEL) %>%
+  mutate(Percent = n / sum(n) * 100)
+
+ggplot(crash_helm_pct, aes(x = HELM_USE_LABEL, y = Percent, fill = MAX_SEV_LABEL)) +
+  geom_bar(stat = "identity", position = "fill") +
+  geom_text(aes(label = paste0(round(Percent, 1), "%")),
+            position = position_fill(vjust = 0.5), size = 3, color = "white") +
+  labs(title = "Crash Severity by Helmet Use",
+       x = "Helmet Use",
+       y = "Proportion",
+       fill = "Severity Level") +
+  theme_minimal()
+```
+
+
+Splitting standards 
+
+
+```{r}
+
+crash_data_helm_dot <- crash_data_clean %>%
+  filter(VEHICLE_TYPE == "Motorcycle") %>%
+  filter(HELM_USE %in% c(17, 5,16,19)) %>%
+  mutate(
+    HELM_USE_LABEL = case_when(
+      HELM_USE %in% c(17) ~ "No Helmet",
+      HELM_USE %in% c(5) ~ "DOT Helmet",
+       HELM_USE %in% c(16,19) ~ "Unregulated Helmet",
+      TRUE ~ "Unknown"
+    )
+  )
+
+total_motorcycle_helm_dot <- crash_data_helm_dot %>% nrow()
+
+helm_props_motorcycle_dot <- crash_data_helm_dot %>%
+  group_by(HELM_USE_LABEL) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  mutate(prop = n / total_motorcycle_helm_dot)
+
+helm_props_motorcycle_dot
+
+
+crash_helm_pct_dot <- crash_data_helm_dot %>%
+  count(HELM_USE_LABEL, MAX_SEV_LABEL) %>%
+  group_by(HELM_USE_LABEL) %>%
+  mutate(Percent = n / sum(n) * 100)
+
+ggplot(crash_helm_pct_dot, aes(x = HELM_USE_LABEL, y = Percent, fill = MAX_SEV_LABEL)) +
+  geom_bar(stat = "identity", position = "fill") +
+  geom_text(aes(label = paste0(round(Percent, 1), "%")),
+            position = position_fill(vjust = 0.5), size = 3, color = "white") +
+  labs(title = "Crash Severity by Regulated Helmet Use",
+       x = "Helmet Use",
+       y = "Proportion",
+       fill = "Severity Level") +
+  theme_minimal()
+
+
+```
+
+
+
+##### Time of Day
+
+```{r}
+crash_data_clean_motorcycle <- crash_data_clean %>% 
+  filter(VEHICLE_TYPE == "Motorcycle")
+
+ggplot(crash_data_clean_motorcycle, aes(x = HOUR_IM, y = as.numeric(MAX_SEV_LABEL))) +
+  geom_jitter(aes(color = MAX_SEV_LABEL), width = 0, height = 0.2) + 
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(
+    title = "Crash Severity by Hour of Day",
+    x = "Hour of Crash (HOUR_IM)",
+    y = "Maximum Injury Severity (MAX_SEV)"
+  )
+```
+
+#### Weather 
+
+
+```{r}
+
+crash_data_clean_weather <- crash_data_clean %>%
+  filter(VEHICLE_TYPE == "Motorcycle") %>% 
+  mutate(
+    Weather = case_when(
+     WEATHR_IM == 1  ~ "Clear",
+      WEATHR_IM == 2  ~ "Rain",
+      WEATHR_IM == 4  ~ "Snow",
+      WEATHR_IM == 5  ~ "Fog",
+      WEATHR_IM == 6  ~ "Winds",
+      WEATHR_IM == 7  ~ "Sandy",
+      WEATHR_IM == 8  ~ "Other",
+      WEATHR_IM == 10 ~ "Cloudy",
+      WEATHR_IM == 11 ~ "Blowing Snow",
+      WEATHR_IM == 12 ~ "Freezing Rain or Drizzle",
+      TRUE ~ "Other/Unknown"
+    ))
+  
+
+ggplot(crash_data_clean_weather, aes(x = Weather, y = as.numeric(MAX_SEV_LABEL))) +
+ geom_jitter(aes(color = MAX_SEV_LABEL), width = 0, height = 0.2) + 
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(
+    title = "Crash Severity by Weather Condition",
+    x = "Weather Condition",
+    y = "Maximum Injury Severity (MAX_SEV)"
+  ) 
+```
+
+
+#### Multiple Regression model 
+
+```{r}
+crash_data_combined <- crash_data_clean %>%
+  filter(ALCOHOL %in% c(1, 2)) %>%
+  filter(!is.na(TRAV_SP) & TRAV_SP > 0 & TRAV_SP < 900) %>%
+  filter(!is.na(AGE), AGE <= 120) %>%
+  mutate(
+    ALCOHOL_LABEL = factor(
+      ALCOHOL,
+      levels = c(1, 2),
+      labels = c("Alcohol Involved", "No Alcohol")
+    ),
+  
+  ) %>%
+  mutate(
+    HELM_USE_LABEL = case_when(
+      HELM_USE == 5 ~ "DOT Helmet",
+      HELM_USE == 17 ~ "No Helmet"
+    )
+  ) %>%
+ mutate(
+    Overspeed = TRAV_SP - VSPD_LIM
+  )
+# Build the multiple regression model
+model_combined <- lm(MAX_SEV ~ VEHICLE_TYPE + AGE + TRAV_SP + ALCOHOL_LABEL + HELM_USE_LABEL + HOUR_IM + Overspeed, data = crash_data_combined)
+
+# Summarize the model
+summary(model_combined)
+```
+
+
+
+####  Conclusions 
+
+Analysis and insights will be presented in the Final project presentation.   
+
